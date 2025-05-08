@@ -1,0 +1,23 @@
+{
+  "name": "hyperledger-fabric-insurance-demo",
+  "version": "1.0.0",
+  "description": "Aplicación para gestión de seguros con Hyperledger Fabric",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "hyperledger",
+    "fabric",
+    "blockchain",
+    "insurance",
+    "seguros"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fabric-ca-client": "^2.2.20",
+    "fabric-network": "^2.2.20"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "insurance-chaincode",
+  "version": "1.0.0",
+  "description": "Chaincode para gestión de seguros",
+  "main": "index.js",
+  "scripts": {
+    "start": "fabric-chaincode-node start"
+  },
+  "dependencies": {
+    "fabric-contract-api": "^2.5.1",
+    "fabric-shim": "^2.5.1"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  }
+}
