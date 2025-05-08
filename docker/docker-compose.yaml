@@ -1,11 +1,11 @@
-version: "2"
+version: '2'
 
 networks:
-  insurance_network:
+  seguros_network:
 
 services:
   ca.org1.example.com:
-    image: hyperledger/fabric-ca:1.5.15 # Cambiado a 1.5.15 según tus imágenes
+    image: hyperledger/fabric-ca:1.5.15
     environment:
       - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
       - FABRIC_CA_SERVER_CA_NAME=ca.org1.example.com
@@ -15,13 +15,13 @@ services:
       - "7054:7054"
     command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
     volumes:
-      - ./ca-org1:/etc/hyperledger/fabric-ca-server
+      - ./crypto-config/fabric-ca-server:/etc/hyperledger/fabric-ca-server
     container_name: ca.org1.example.com
     networks:
-      - insurance_network
+      - seguros_network
 
   orderer.example.com:
-    image: hyperledger/fabric-orderer:2.5.12 # Cambiado a 2.5.12 según tus imágenes
+    image: hyperledger/fabric-orderer:2.5.12
     environment:
       - FABRIC_LOGGING_SPEC=INFO
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
@@ -29,54 +29,63 @@ services:
       - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
       - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/msp
       - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/etc/hyperledger/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/etc/hyperledger/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/etc/hyperledger/tls/ca.crt]
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/etc/hyperledger/configtx/genesis.block
+      - ORDERER_OPERATIONS_LISTENADDRESS=0.0.0.0:8443
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9443
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
     ports:
-      - "7050:7050"
+      - 7050:7050
+      - 8443:8443
+      - 9443:9443
     volumes:
-      - ./orderer:/etc/hyperledger/orderer
+      - ./channel-artifacts/genesis.block:/etc/hyperledger/configtx/genesis.block
       - ./crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/etc/hyperledger/msp
-      - ./crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls/:/etc/hyperledger/tls
-    container_name: orderer.example.com
+      - ./crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls:/etc/hyperledger/tls
     networks:
-      - insurance_network
+      - seguros_network
+    container_name: orderer.example.com
 
   peer0.org1.example.com:
-    image: hyperledger/fabric-peer:2.5.12 # Cambiado a 2.5.12 según tus imágenes
+    image: hyperledger/fabric-peer:2.5.12
     environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=docker_seguros_network
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_PROFILE_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/tls/ca.crt
       - CORE_PEER_ID=peer0.org1.example.com
       - CORE_PEER_ADDRESS=peer0.org1.example.com:7051
       - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
       - CORE_PEER_CHAINCODEADDRESS=peer0.org1.example.com:7052
       - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
       - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org1.example.com:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org1.example.com:7051
       - CORE_PEER_LOCALMSPID=Org1MSP
-      - CORE_PEER_TLS_ENABLED=true
-      - CORE_PEER_GOSSIP_USELEADERELECTION=true
-      - CORE_PEER_GOSSIP_ORGLEADER=false
-      - CORE_PEER_PROFILE_ENABLED=true
-    ports:
-      - "7051:7051"
-      - "7052:7052"
+      - CORE_OPERATIONS_LISTENADDRESS=0.0.0.0:9444
     volumes:
-      - ./peer0-org1:/etc/hyperledger/peer
+      - /var/run/docker.sock:/host/var/run/docker.sock
       - ./crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp:/etc/hyperledger/msp
       - ./crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls:/etc/hyperledger/tls
-    container_name: peer0.org1.example.com
-    networks:
-      - insurance_network
-
-  couchdb:
-    image: couchdb:3.1.1 # CouchDB independiente en lugar de fabric-couchdb
-    environment:
-      - COUCHDB_USER=admin
-      - COUCHDB_PASSWORD=adminpw
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
     ports:
-      - "5984:5984"
-    container_name: couchdb
+      - 7051:7051
+      - 7052:7052
+      - 9444:9444
     networks:
-      - insurance_network
+      - seguros_network
+    container_name: peer0.org1.example.com
 
   cli:
-    image: hyperledger/fabric-peer:2.5.12 # Usar fabric-peer en lugar de fabric-tools
+    image: hyperledger/fabric-peer:2.5.12
     tty: true
     stdin_open: true
     environment:
@@ -94,11 +103,10 @@ services:
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
     command: /bin/bash
     volumes:
-      - /var/run/:/host/var/run/
-      - ./chaincode:/opt/gopath/src/github.com/chaincode
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - ./chaincode/:/opt/gopath/src/github.com/chaincode
       - ./crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
-      - ./scripts:/opt/gopath/src/github.com/hyperledger/fabric/peer/scripts/
       - ./channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
-    container_name: cli
     networks:
-      - insurance_network
+      - seguros_network
+    container_name: cli
